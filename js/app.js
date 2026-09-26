@@ -381,6 +381,8 @@ class NematApp {
       this.hydrateRescueJobDetails(container);
     } else if (routeKey === 'volunteer/active') {
       this.hydrateActiveRescue(container);
+    } else if (routeKey === 'volunteer/deliver') {
+      this.hydrateDeliverRescuedFood(container);
     } else if (routeKey === 'recipient/dashboard') {
       this.hydrateRecipientDashboard(container);
     } else if (routeKey === 'recipient/delivery') {
@@ -391,19 +393,27 @@ class NematApp {
       this.hydrateApprovals(container);
     } else if (routeKey === 'admin/safety') {
       this.hydrateFoodSafetyDesk(container);
+    } else if (routeKey === 'customer/profile') {
+      this.hydrateCustomerProfile(container);
+    } else if (routeKey === 'volunteer/my-runs') {
+      this.hydrateMyRuns(container);
     }
   }
 
   // --- SCREEN HYDRATORS ---
 
   hydrateCustomerExplore(container) {
-    // Cards render in the same order as state.drops (Stitch markup has no
-    // per-card id) — match each card to its real drop by position, so
-    // clicking any card opens ITS bag instead of always drop-1.
+    // Stitch markup has no per-card id, so match each card to its real drop
+    // by the vendor name already printed on the card (robust to a new drop
+    // being unshifted to the front of state.drops — plain array-index
+    // matching would silently point every card at the wrong bag then).
+    // Falls back to position only if no vendor name match is found.
     const drops = window.NematState.get().drops;
 
     container.querySelectorAll('article, .surplus-card').forEach((card, idx) => {
-      const dropId = drops[idx]?.id || 'drop-1';
+      const cardText = card.textContent;
+      const matchedDrop = drops.find(d => d.vendorName && cardText.includes(d.vendorName));
+      const dropId = matchedDrop?.id ?? drops[idx]?.id ?? 'drop-1';
       card.style.cursor = 'pointer';
       card.addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
@@ -511,6 +521,41 @@ class NematApp {
 
       const storefrontCaption = container.querySelector('.font-label-sm.text-label-sm.text-on-surface.font-bold.truncate');
       if (storefrontCaption) storefrontCaption.textContent = `${drop.vendorName} • ${drop.sector}`;
+
+      // "What's inside?" has no real per-item data model — approximate it
+      // by splitting the drop's own description into items, rather than
+      // leaving Loaf & Crumb's croissants/pain au chocolat on every bag.
+      const whatsInsideHeading = [...container.querySelectorAll('h3')].find(h => h.textContent.includes("What's inside"));
+      const grid = whatsInsideHeading?.nextElementSibling;
+      if (grid && drop.description) {
+        const items = drop.description.replace(/\.$/, '').split(/,| and /i).map(s => s.trim()).filter(Boolean);
+        [...grid.children].forEach((slot, i) => {
+          const span = slot.querySelector('span:last-child');
+          if (items[i] && span) {
+            span.textContent = items[i].charAt(0).toUpperCase() + items[i].slice(1);
+            slot.style.display = '';
+          } else {
+            slot.style.display = 'none';
+          }
+        });
+      }
+
+      // Dietary/allergen chips + text, rebuilt from the drop's real tags
+      // instead of always showing "Vegetarian Friendly / 100% Halal".
+      const dietaryHeading = [...container.querySelectorAll('h3')].find(h => h.textContent.includes('Dietary'));
+      const chipRow = dietaryHeading?.nextElementSibling;
+      const allergenPara = chipRow?.nextElementSibling;
+      if (chipRow && drop.tags) {
+        const ICONS = { Halal: 'check_circle', Vegetarian: 'eco' };
+        chipRow.innerHTML = drop.tags
+          .filter(t => !t.toLowerCase().startsWith('contains'))
+          .map(t => `<span class="px-2.5 py-1 rounded-md bg-surface-container text-primary font-label-sm text-label-sm font-semibold flex items-center gap-1"><span class="material-symbols-outlined text-[15px]">${ICONS[t] || 'verified'}</span>${t}</span>`)
+          .join('');
+      }
+      if (allergenPara && drop.tags) {
+        const allergenTags = drop.tags.filter(t => t.toLowerCase().startsWith('contains'));
+        allergenPara.innerHTML = `<strong>Allergens:</strong> ${allergenTags.length ? allergenTags.join(', ') : 'None declared'}.`;
+      }
     }
 
     container.querySelectorAll('button').forEach(btn => {
@@ -646,23 +691,32 @@ class NematApp {
   }
 
   hydrateRescueJobs(container) {
-    container.querySelectorAll('.group.cursor-pointer, .rounded-xl:has(img)').forEach(jobCard => {
+    // Same vendor-name-matching approach as hydrateCustomerExplore — the
+    // static cards have no per-card id, so match by the vendor name text
+    // already on the card instead of assuming DOM order === array order.
+    const jobs = window.NematState.get().rescueJobs;
+
+    container.querySelectorAll('.group.cursor-pointer, .rounded-xl:has(img)').forEach((jobCard, idx) => {
+      const cardText = jobCard.textContent;
+      const matchedJob = jobs.find(j => j.vendorName && cardText.includes(j.vendorName));
+      const jobId = matchedJob?.id ?? jobs[idx]?.id ?? 'rj-104';
+
       jobCard.style.cursor = 'pointer';
       jobCard.addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
-        this.selectedJobId = 'rj-104';
+        this.selectedJobId = jobId;
         this.navigate('volunteer/job');
       });
-    });
 
-    container.querySelectorAll('button, a').forEach(btn => {
-      if (btn.textContent.includes('Claim') || btn.textContent.includes('View Route') || btn.textContent.includes('Run Details')) {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.selectedJobId = 'rj-104';
-          this.navigate('volunteer/job');
-        });
-      }
+      jobCard.querySelectorAll('button, a').forEach(btn => {
+        if (btn.textContent.includes('Claim') || btn.textContent.includes('View Route') || btn.textContent.includes('Run Details')) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.selectedJobId = jobId;
+            this.navigate('volunteer/job');
+          });
+        }
+      });
     });
   }
 
@@ -698,6 +752,22 @@ class NematApp {
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           this.navigate('volunteer/deliver');
+        });
+      }
+    });
+  }
+
+  hydrateDeliverRescuedFood(container) {
+    container.querySelectorAll('button').forEach(btn => {
+      if (btn.textContent.toLowerCase().includes('confirm delivery')) {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          btn.disabled = true;
+          const res = await window.NematState.progressRescueStep(this.selectedJobId, 'delivered');
+          if (res.success) {
+            this.showToast('Delivery Confirmed!', 'Run complete — logged to your civic rescue history.', 'check_circle');
+            this.navigate('volunteer/my-runs');
+          }
         });
       }
     });
@@ -748,38 +818,110 @@ class NematApp {
   }
 
   hydrateApprovals(container) {
+    // The detail panel (name/ID/category) is static "Loaf & Crumb" markup —
+    // patch in the first real pending approval so Approve/Reject act on an
+    // actual record instead of a fictional one.
+    const approvals = window.NematState.get().approvals;
+    const approval = approvals.find(a => a.status === 'pending');
+
+    const heading = container.querySelector('h2.font-headline-md.text-headline-md.tracking-tight.font-bold.text-on-primary');
+    if (approval && heading) {
+      heading.textContent = approval.name;
+      if (heading.nextElementSibling) {
+        heading.nextElementSibling.textContent = `ID: ${approval.regNumber ?? approval.id} • ${approval.category}`;
+      }
+    }
+
     container.querySelectorAll('button').forEach(btn => {
       const text = btn.textContent.trim();
       if (text.includes('Approve')) {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
-          const card = btn.closest('.rounded-xl, tr, article');
-          btn.textContent = 'Approved ✓';
-          btn.className = 'px-3 py-1 bg-primary text-white rounded-lg text-xs font-bold';
-          this.showToast('Entity Approved', 'CDA Food Safety verification token granted.', 'verified');
+          if (!approval) return;
+          btn.disabled = true;
+          const res = await window.NematState.reviewApproval(approval.id, true);
+          if (res.success) {
+            btn.textContent = 'Approved ✓';
+            btn.className = 'px-3 py-1 bg-primary text-white rounded-lg text-xs font-bold';
+            this.showToast('Entity Approved', 'CDA Food Safety verification token granted.', 'verified');
+          }
         });
       } else if (text.includes('Reject')) {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
-          btn.textContent = 'Rejected ✕';
-          btn.className = 'px-3 py-1 bg-error text-white rounded-lg text-xs font-bold';
-          this.showToast('Entity Rejected', 'Notification sent to applicant.', 'cancel');
+          if (!approval) return;
+          btn.disabled = true;
+          const res = await window.NematState.reviewApproval(approval.id, false);
+          if (res.success) {
+            btn.textContent = 'Rejected ✕';
+            btn.className = 'px-3 py-1 bg-error text-white rounded-lg text-xs font-bold';
+            this.showToast('Entity Rejected', 'Notification sent to applicant.', 'cancel');
+          }
         });
       }
     });
   }
 
   hydrateFoodSafetyDesk(container) {
+    // The ticket detail panel is static "Loaf & Crumb" markup — patch in
+    // the first real actionable report so Suspend Vendor acts on it.
+    const reports = window.NematState.get().foodSafetyReports;
+    const report = reports.find(r => r.status === 'Under Review');
+
+    const heading = container.querySelector('h3.font-headline-sm.text-headline-sm.mt-0\\.5.text-on-primary.font-bold');
+    if (report && heading) {
+      heading.textContent = `Report #${report.id}`;
+      if (heading.nextElementSibling) {
+        heading.nextElementSibling.textContent = `${report.vendorName} · ${report.sector}`;
+      }
+    }
+
     container.querySelectorAll('button').forEach(btn => {
       if (btn.textContent.includes('Suspend Vendor') || btn.textContent.includes('Action')) {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
-          const vendor = window.NematState.get().vendors[0];
-          vendor.status = 'Suspended (Safety Review)';
-          this.showToast('Vendor Suspended (FR-61)', `${vendor.name} suspended pending safety audit.`, 'warning');
+          if (!report) return;
+          btn.disabled = true;
+          const res = await window.NematState.suspendVendor(report.id);
+          if (res.success) {
+            this.showToast('Vendor Suspended (FR-61)', `${res.vendor?.name ?? report.vendorName} suspended pending safety audit.`, 'warning');
+          }
         });
       }
     });
+  }
+
+  hydrateCustomerProfile(container) {
+    // Static "Bilal Khan / 6 Rescued / 10.8 kg / Rs 4,850" markup — patch
+    // in the real currentUser stats instead of always showing the seed
+    // template's numbers.
+    const user = window.NematState.get().currentUser;
+    const co2 = `${user.co2SavedKg} kg CO₂e`;
+
+    const chips = container.querySelectorAll('.px-space-sm.py-0\\.5.rounded.bg-surface-container.text-on-surface.font-label-sm.text-label-sm');
+    if (chips[0]) chips[0].textContent = `🍲 ${user.mealsRescued} Rescued`;
+    if (chips[1]) chips[1].textContent = `🌱 ${co2}`;
+    if (chips[2]) chips[2].textContent = `₨ ${user.pkrSaved.toLocaleString()} Saved`;
+
+    // Header "Net Environmental Impact" value — only rewrite the leading
+    // text node so the nested "saved" label span is left untouched.
+    const impactHeading = [...container.querySelectorAll('span')].find(s => s.textContent.trim() === 'Net Environmental Impact');
+    const impactValue = impactHeading?.parentElement?.querySelector('span.font-metric-price');
+    if (impactValue?.firstChild?.nodeType === Node.TEXT_NODE) {
+      impactValue.firstChild.textContent = `${co2} `;
+    }
+  }
+
+  hydrateMyRuns(container) {
+    // Only the headline numbers on the first two metric cards (runs
+    // completed, kg rescued) map to real data we track — the trend
+    // badges ("+3 this week") and sparkline have no backing time-series,
+    // so those stay decorative.
+    const vol = window.NematState.get().volunteers[0];
+    if (!vol) return;
+    const numbers = container.querySelectorAll('.font-display-xl.text-display-xl.text-primary.leading-none');
+    if (numbers[0]) numbers[0].textContent = vol.runsCompleted;
+    if (numbers[1]) numbers[1].textContent = Math.round(vol.totalKgRescued);
   }
 
   // --- INTERACTIVE MODALS ---

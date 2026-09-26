@@ -952,17 +952,23 @@ class StateManager {
   async flagFoodSafety(vendorName, issue, details) {
     const vendor = this.state.vendors.find(v => v.name.toLowerCase().includes(vendorName.toLowerCase()));
 
-    apiFetch('/food-safety-reports', {
-      method: 'POST',
-      body: JSON.stringify({
-        vendorId: vendor?.id,
-        vendorName,
-        sector: vendor?.sector,
-        reportedBy: this.state.currentUser.name,
-        issue,
-        details
-      })
-    }).catch(err => console.warn('Nemat: food safety report not persisted (backend unreachable).', err));
+    let id = 'fsr-' + Date.now();
+    try {
+      const row = await apiFetch('/food-safety-reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId: vendor?.id,
+          vendorName,
+          sector: vendor?.sector,
+          reportedBy: this.state.currentUser.name,
+          issue,
+          details
+        })
+      });
+      id = row.id; // server is the source of truth — suspendVendor() needs this real id
+    } catch (err) {
+      console.warn('Nemat: food safety report not persisted (backend unreachable).', err);
+    }
 
     if (vendor) {
       vendor.flagsCount += 1;
@@ -973,7 +979,7 @@ class StateManager {
     }
 
     const report = {
-      id: 'fsr-' + Date.now(),
+      id,
       vendorName,
       sector: vendor?.sector || 'Islamabad',
       reportedBy: this.state.currentUser.name,
@@ -992,6 +998,25 @@ class StateManager {
     );
     this.saveState();
     return report;
+  }
+
+  // Admin Food Safety desk "Suspend Vendor" action (FR-61).
+  async suspendVendor(reportId) {
+    const report = this.state.foodSafetyReports.find(r => r.id === reportId);
+    if (!report) return { success: false, message: 'Report not found' };
+
+    try {
+      await apiFetch(`/food-safety-reports/${encodeURIComponent(reportId)}/suspend`, { method: 'POST' });
+    } catch (err) {
+      console.warn('Nemat: vendor suspension not persisted (backend unreachable).', err);
+    }
+
+    const vendor = this.state.vendors.find(v => v.name.toLowerCase().includes(report.vendorName.toLowerCase()));
+    if (vendor) vendor.status = 'Suspended (Safety Review)';
+    report.vendorSuspended = true;
+
+    this.saveState();
+    return { success: true, vendor };
   }
 }
 
