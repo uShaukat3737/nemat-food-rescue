@@ -11,7 +11,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const withSeed = !process.argv.includes("--seed=false");
 
 if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.");
+  console.error("DATABASE_URL is not set. Copy .env.example to .env and fill it in.");
   process.exit(1);
 }
 
