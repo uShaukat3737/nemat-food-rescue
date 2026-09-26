@@ -1,0 +1,19 @@
+{
+  "name": "nemat-food-rescue",
+  "version": "1.0.0",
+  "description": "Nemat (نعمت) - Surplus Food Rescue Platform for Islamabad",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "food-rescue",
+    "islamabad",
+    "surplus-food",
+    "sustainability",
+    "pwa"
+  ],
+  "author": "Nemat Team",
+  "license": "MIT"
+}

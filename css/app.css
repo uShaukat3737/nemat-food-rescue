@@ -1,0 +1,171 @@
+/* Nemat (نعمت) - Custom App CSS Enhancements */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
+:root {
+  --primary-color: #012d1d;
+  --primary-container: #1b4332;
+  --secondary-color: #904d00;
+  --surface-color: #fbf9f6;
+}
+
+/* Urdu typography enhancement */
+[dir="rtl"], .font-urdu {
+  font-family: 'Plus Jakarta Sans', 'Noto Nastaliq Urdu', -apple-system, sans-serif;
+  letter-spacing: normal;
+}
+
+[dir="rtl"] aside {
+  left: auto !important;
+  right: 0 !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: none;
+}
+
+[dir="rtl"] .pl-72 {
+  padding-left: 0 !important;
+  padding-right: 18rem !important;
+}
+
+[dir="rtl"] header.left-72 {
+  left: 0 !important;
+  right: 18rem !important;
+}
+
+/* Smooth Fade Transition for screen swaps */
+.nemat-screen-enter {
+  animation: nematFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes nematFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Toast Notifications Container */
+#nemat-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  pointer-events: none;
+}
+
+.nemat-toast {
+  pointer-events: auto;
+  background: #ffffff;
+  color: #1b1c1a;
+  border-left: 4px solid #1b4332;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: nematToastSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.2s ease;
+}
+
+@keyframes nematToastSlide {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Floating Quick Hub & Scenario Bar */
+#nemat-quick-hub {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  background: rgba(1, 45, 29, 0.94);
+  backdrop-filter: blur(16px);
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  box-shadow: 0 12px 36px rgba(1, 45, 29, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
+  gap: 10px;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+#nemat-quick-hub:hover {
+  background: rgba(1, 45, 29, 0.98);
+  box-shadow: 0 16px 42px rgba(1, 45, 29, 0.45);
+}
+
+.hub-btn {
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #a5d0b9;
+}
+
+.hub-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.hub-btn.active {
+  background: #2d6a4f;
+  color: #ffffff;
+}
+
+/* Modal Backdrops */
+.nemat-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: nematFadeIn 0.2s ease forwards;
+}
+
+/* Pulsing beacon */
+.beacon-pulse {
+  position: relative;
+}
+.beacon-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0.4;
+  animation: beaconPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes beaconPing {
+  75%, 100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}

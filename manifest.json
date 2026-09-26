@@ -1,0 +1,17 @@
+{
+  "name": "Nemat Food Rescue — Islamabad",
+  "short_name": "Nemat",
+  "description": "Islamabad surplus food rescue marketplace and volunteer redistribution platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf9f6",
+  "theme_color": "#1b4332",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/aida-public/AB6AXuA4KK8a1ZbqfNNCHXsW_jDJwi1zsQ48yh-z2aSiaiqtJ0hBWSdSfItKX3C1Kk6R6vg-sfxWbL2YmxClzKcFQXsv7tH3Prm1iYhQfUAXzQwS_vHUaksooGAE023QIrPlscr5PpnlIZmCNSauZgy0q-kzYJKNVNxRoxSkGMqu4PdVALJsMHGG_5SQ7otAbAzKKleBIeHveE8kWdaSgfLxDY4AAtA_8Ac_xX0CqX69m403p6RBBaVFMXza",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
