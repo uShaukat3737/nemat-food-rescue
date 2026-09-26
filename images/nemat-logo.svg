@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Nemat Food Rescue logo">
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="#1b4332"/>
+  <path d="M32 14c-9 0-16 7-16 16 0 7 4.5 13 11 15.3V49a2 2 0 0 0 4 0v-3.7c6.5-2.3 11-8.3 11-15.3 0-9-7-16-16-16z"
+        fill="#fe932c"/>
+  <path d="M32 20c-6 0-10 4.4-10 10 0 4.4 2.8 8.1 6.8 9.6L30 42h4l1.2-2.4C39.2 38.1 42 34.4 42 30c0-5.6-4-10-10-10z"
+        fill="#c1ecd4"/>
+</svg>

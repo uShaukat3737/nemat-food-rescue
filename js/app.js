@@ -40,10 +40,6 @@ const DATA_PATH_MAP = {
   'role-switcher': 'choose-role',
   'dashboard': 'vendor/dashboard',
   'new-drop': 'vendor/new-drop',
-  'drops': 'vendor/dashboard',
-  'reservations': 'vendor/dashboard',
-  'history': 'vendor/dashboard',
-  'impact': 'customer/profile',
   'jobs': 'volunteer/jobs',
   'volunteer-jobs': 'volunteer/jobs',
   'my-runs': 'volunteer/my-runs',
@@ -398,25 +394,31 @@ class NematApp {
   // --- SCREEN HYDRATORS ---
 
   hydrateCustomerExplore(container) {
-    // Make bag cards clickable to open bag details
+    // Cards render in the same order as state.drops (Stitch markup has no
+    // per-card id) — match each card to its real drop by position, so
+    // clicking any card opens ITS bag instead of always drop-1.
+    const drops = window.NematState.get().drops;
+
     container.querySelectorAll('article, .surplus-card').forEach((card, idx) => {
+      const dropId = drops[idx]?.id || 'drop-1';
       card.style.cursor = 'pointer';
       card.addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
-        this.selectedBagId = 'drop-1';
+        this.selectedBagId = dropId;
         this.navigate('customer/bag');
       });
-    });
 
-    // Wire Reserve buttons on cards
-    container.querySelectorAll('article a, article button').forEach(btn => {
-      if (btn.textContent.includes('Reserve') || btn.textContent.includes('Bag')) {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.selectedBagId = 'drop-1';
-          this.navigate('customer/bag');
-        });
-      }
+      // Reserve/Bag buttons nested inside this specific card
+      card.querySelectorAll('a, button').forEach(btn => {
+        const btnText = btn.textContent.toLowerCase();
+        if (btnText.includes('reserve') || btnText.includes('bag')) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.selectedBagId = dropId;
+            this.navigate('customer/bag');
+          });
+        }
+      });
     });
 
     // Wire Sector Change link
@@ -450,8 +452,68 @@ class NematApp {
   }
 
   hydrateSurpriseBagDetails(container) {
+    // The template is static Loaf & Crumb markup — patch in the actually
+    // selected drop's data so different bags don't all look identical.
+    const drops = window.NematState.get().drops;
+    const drop = drops.find(d => d.id === this.selectedBagId) || drops[0];
+
+    if (drop) {
+      const categoryLabel = drop.category.charAt(0).toUpperCase() + drop.category.slice(1);
+
+      const crumbNav = container.querySelector('nav.text-body-sm');
+      if (crumbNav) {
+        const links = crumbNav.querySelectorAll('a');
+        if (links[1]) links[1].textContent = drop.sector;
+        if (links[2]) links[2].textContent = drop.vendorName;
+        const bagCrumb = crumbNav.querySelector('span.truncate');
+        if (bagCrumb) bagCrumb.textContent = drop.title;
+      }
+
+      const heroImg = container.querySelector('#main-gallery-image');
+      if (heroImg) heroImg.src = drop.image;
+
+      container.querySelectorAll('span').forEach(span => {
+        const text = span.textContent.trim();
+        if (text.endsWith('OFF')) {
+          span.textContent = `${drop.discountPct}% OFF`;
+        } else if (text.includes('bags remaining') || text.includes('bag remaining')) {
+          span.textContent = `${drop.bagsLeft} bag${drop.bagsLeft === 1 ? '' : 's'} remaining`;
+        }
+      });
+
+      const vendorHeading = container.querySelector('h2.font-headline-sm');
+      if (vendorHeading) {
+        vendorHeading.textContent = drop.vendorName;
+        const addressP = vendorHeading.closest('div').parentElement.querySelector('p.font-body-sm');
+        if (addressP) addressP.textContent = drop.address;
+      }
+
+      const h1 = container.querySelector('h1.font-headline-lg');
+      if (h1) {
+        const categoryBadge = h1.previousElementSibling?.querySelector('span');
+        if (categoryBadge) categoryBadge.textContent = `${categoryLabel} • ${drop.sector}`;
+        h1.textContent = drop.title;
+        if (h1.nextElementSibling) h1.nextElementSibling.textContent = drop.description;
+      }
+
+      const priceEl = container.querySelector('.font-display-xl.text-\\[36px\\]');
+      if (priceEl) priceEl.textContent = `PKR ${drop.pricePkr}`;
+      const retailEl = container.querySelector('.text-outline.line-through');
+      if (retailEl) retailEl.textContent = `PKR ${drop.retailPkr}`;
+      const saveEl = container.querySelector('.bg-secondary-fixed.text-on-secondary-fixed.shadow-sm');
+      if (saveEl) saveEl.textContent = `Save ${drop.discountPct}% (PKR ${drop.retailPkr - drop.pricePkr})`;
+
+      const windowEl = container.querySelector('.font-body-md.text-body-md.font-semibold.text-primary');
+      if (windowEl) windowEl.textContent = `Today • ${drop.window}`;
+
+      const storefrontCaption = container.querySelector('.font-label-sm.text-label-sm.text-on-surface.font-bold.truncate');
+      if (storefrontCaption) storefrontCaption.textContent = `${drop.vendorName} • ${drop.sector}`;
+    }
+
     container.querySelectorAll('button').forEach(btn => {
       if (btn.textContent.includes('Reserve Bag') || btn.textContent.includes('Confirm Reservation')) {
+        const span = btn.querySelector('span');
+        if (span && drop) span.textContent = `Reserve Bag • PKR ${drop.pricePkr}`;
         btn.addEventListener('click', (e) => {
           e.preventDefault();
           const res = window.NematState.reserveBag(this.selectedBagId);
