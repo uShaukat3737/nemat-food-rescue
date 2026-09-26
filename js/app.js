@@ -314,12 +314,17 @@ class NematApp {
 
       // innerHTML never executes <script> tags, so each template's own inline
       // interaction script (modals, tabs, etc.) needs to be re-created to run.
+      // Wrapped in an IIFE: classic <script> top-level const/let attach to
+      // the real global scope, not the DOM node, so revisiting a screen
+      // whose script declares e.g. `const refreshBtn = ...` a second time
+      // threw "Identifier has already been declared" and aborted the rest
+      // of loadScreen (scroll reset, quick-hub highlight, language re-apply).
       appRoot.querySelectorAll('script').forEach(oldScript => {
         const newScript = document.createElement('script');
         if (oldScript.src) {
           newScript.src = oldScript.src;
         } else {
-          newScript.textContent = oldScript.textContent;
+          newScript.textContent = `(function(){\n${oldScript.textContent}\n})();`;
         }
         oldScript.replaceWith(newScript);
       });
