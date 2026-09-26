@@ -83,7 +83,10 @@ class NematApp {
       this.updateQuickHubActiveRole();
     });
 
-    // Handle initial route
+    // Handle initial route immediately with local demo data, then swap
+    // in live data from the backend as soon as it arrives.
+    this.handleHashChange();
+    await window.NematState.bootstrap();
     this.handleHashChange();
   }
 
@@ -514,9 +517,9 @@ class NematApp {
       if (btn.textContent.includes('Reserve Bag') || btn.textContent.includes('Confirm Reservation')) {
         const span = btn.querySelector('span');
         if (span && drop) span.textContent = `Reserve Bag • PKR ${drop.pricePkr}`;
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
-          const res = window.NematState.reserveBag(this.selectedBagId);
+          const res = await window.NematState.reserveBag(this.selectedBagId);
           if (res.success) {
             this.showToast('Reservation Successful!', `Pickup Pass #${res.reservation.code} generated.`, 'check_circle');
             this.navigate('customer/confirmed');
@@ -594,8 +597,8 @@ class NematApp {
       closeBtn.id = 'vendor-close-window-btn';
       closeBtn.className = 'px-3 py-1.5 rounded-lg bg-secondary text-on-secondary font-bold text-xs flex items-center gap-1.5 shadow-sm hover:bg-secondary-container transition-all';
       closeBtn.innerHTML = `<span class="material-symbols-outlined text-[16px]">emergency_share</span> Send Unsold to Rescue`;
-      closeBtn.addEventListener('click', () => {
-        const job = window.NematState.closeWindowAndSendToRescue('v-1');
+      closeBtn.addEventListener('click', async () => {
+        const job = await window.NematState.closeWindowAndSendToRescue('v-1');
         this.showToast('Window Closed & Converted!', `${job.bagsCount} surplus bags sent to Volunteer Rescue network.`, 'local_shipping');
         setTimeout(() => this.navigate('volunteer/jobs'), 800);
       });
@@ -620,18 +623,19 @@ class NematApp {
     // Wire Publish Drop button
     container.querySelectorAll('button').forEach(btn => {
       if (btn.textContent.includes('Publish Drop')) {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const bagsInput = container.querySelector('input[type="number"], input[value="10"], #bag-count');
           const count = bagsInput ? bagsInput.value : 10;
 
-          const created = window.NematState.createDrop({
+          const created = await window.NematState.createDrop({
             title: bagType === 'bakery' ? 'Artisanal Bakery Surplus Bag' : 'Chef Surprise Evening Bag',
             category: bagType,
             pricePkr: 450,
             retailPkr: 1200,
             bagCount: count,
-            window: '8:30 PM – 9:30 PM'
+            windowStart: '20:30',
+            windowEnd: '21:30'
           });
 
           this.showToast('Drop Published!', `${created.bagCount} bags are now live on Customer Explore & Map.`, 'rocket_launch');
@@ -665,9 +669,9 @@ class NematApp {
   hydrateRescueJobDetails(container) {
     container.querySelectorAll('button').forEach(btn => {
       if (btn.textContent.includes('Accept') || btn.textContent.includes('Claim')) {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
-          const res = window.NematState.claimRescueJob(this.selectedJobId, 'Zeeshan K.');
+          const res = await window.NematState.claimRescueJob(this.selectedJobId, 'Zeeshan K.');
           if (res.success) {
             this.showToast('Run Claimed!', 'Follow the 4-step active transit stepper.', 'two_wheeler');
             this.navigate('volunteer/active');
@@ -820,9 +824,9 @@ class NematApp {
 
     document.body.appendChild(modal);
 
-    modal.querySelector('#counter-verify-submit-btn').addEventListener('click', () => {
+    modal.querySelector('#counter-verify-submit-btn').addEventListener('click', async () => {
       const code = modal.querySelector('#counter-input-code').value;
-      const res = window.NematState.verifyPickupCode(code);
+      const res = await window.NematState.verifyPickupCode(code);
       if (res.success) {
         modal.remove();
         this.showToast('Pickup Confirmed!', `Customer ${res.reservation.customerName} verified. Marked as COLLECTED.`, 'check_circle');
@@ -939,6 +943,11 @@ class NematApp {
     });
   }
 
+  async runCloseWindowScenario() {
+    await window.NematState.closeWindowAndSendToRescue();
+    this.navigate('volunteer/jobs');
+  }
+
   openScenariosModal() {
     const modal = document.createElement('div');
     modal.className = 'nemat-modal-backdrop';
@@ -988,7 +997,7 @@ class NematApp {
               <span class="font-bold text-xs text-secondary">4. Window Closes: Send Unsold to Rescue</span>
               <span class="text-[11px] text-on-surface-variant">Converts remaining surplus into Volunteer Rescue Job.</span>
             </div>
-            <button class="px-3 py-1.5 rounded-lg bg-secondary text-on-secondary text-xs font-bold shrink-0" onclick="window.NematState.closeWindowAndSendToRescue(); window.NematApp.navigate('volunteer/jobs'); this.closest('.nemat-modal-backdrop').remove();">Run</button>
+            <button class="px-3 py-1.5 rounded-lg bg-secondary text-on-secondary text-xs font-bold shrink-0" onclick="window.NematApp.runCloseWindowScenario(); this.closest('.nemat-modal-backdrop').remove();">Run</button>
           </div>
 
           <!-- Scenario 5 -->

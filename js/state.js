@@ -1,5 +1,10 @@
 // Nemat (نعمت) - Surplus Food Rescue Platform State Engine
-// Backed by localStorage with reactive dispatch
+// Backed by a real Postgres API (see lib/api.js) instead of only
+// localStorage. localStorage remains a same-tab cache so the UI still
+// has something to render instantly on load; bootstrap() then replaces
+// it with live data from the database, and every state-changing action
+// persists there too (falling back to local-only if the API is
+// unreachable, so the demo still works offline).
 
 const NEMAT_STORAGE_KEY = 'nemat_app_state_v1';
 
@@ -338,6 +343,174 @@ const defaultState = {
   }
 };
 
+// --- API helpers ---
+
+async function apiFetch(path, options) {
+  const res = await fetch(`/api${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `Request failed: ${res.status}`);
+    err.apiMessage = data.error;
+    throw err;
+  }
+  return data;
+}
+
+// --- DB row -> app-shape mappers (snake_case columns -> the camelCase
+// shape the rest of state.js/app.js already expect) ---
+
+function formatTime12(hms) {
+  if (!hms) return '';
+  const [h, m] = hms.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = ((h + 11) % 12) + 1;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function mapVendor(v) {
+  return {
+    id: v.id,
+    name: v.name,
+    sector: v.sector,
+    address: v.address,
+    contact: v.contact,
+    status: v.status,
+    verified: v.verified,
+    rating: Number(v.rating),
+    flagsCount: v.flags_count,
+    photo: v.photo_url
+  };
+}
+
+function mapDrop(d) {
+  return {
+    id: d.id,
+    vendorId: d.vendor_id,
+    vendorName: d.vendor_name,
+    sector: d.sector,
+    address: d.address,
+    title: d.title,
+    category: d.category,
+    pricePkr: d.price_pkr,
+    retailPkr: d.retail_pkr,
+    discountPct: Math.round(((d.retail_pkr - d.price_pkr) / d.retail_pkr) * 100),
+    bagCount: d.bag_count,
+    bagsLeft: d.bags_left,
+    window: `${formatTime12(d.window_start)} – ${formatTime12(d.window_end)}`,
+    windowStart: d.window_start.slice(0, 5),
+    windowEnd: d.window_end.slice(0, 5),
+    tags: d.tags,
+    status: d.status,
+    description: d.description,
+    image: d.image_url
+  };
+}
+
+function mapReservation(r) {
+  return {
+    id: r.id,
+    code: r.code,
+    dropId: r.drop_id,
+    vendorName: r.vendor_name,
+    vendorAddress: r.vendor_address,
+    customerName: window.NematState?.get().currentUser.name,
+    title: r.title,
+    pricePkr: r.price_pkr,
+    window: `${formatTime12(r.window_start)} – ${formatTime12(r.window_end)}`,
+    status: r.status,
+    qrData: r.qr_data,
+    createdAt: r.created_at,
+    co2SavedKg: Number(r.co2_saved_kg)
+  };
+}
+
+function mapRescueJob(j) {
+  return {
+    id: j.id,
+    dropId: j.drop_id,
+    vendorName: j.vendor_name,
+    vendorAddress: j.vendor_address,
+    vendorContact: j.vendor_contact,
+    recipientId: j.recipient_id,
+    recipientName: j.recipient_name,
+    recipientAddress: j.recipient_address,
+    bagsCount: j.bags_count,
+    weightKg: j.weight_kg != null ? Number(j.weight_kg) : null,
+    vehicle: j.vehicle,
+    distanceKm: j.distance_km != null ? Number(j.distance_km) : null,
+    etaMin: j.eta_min,
+    status: j.status,
+    urgent: j.urgent,
+    closingWindow: j.closing_window,
+    pickupCode: j.pickup_code,
+    handoverCode: j.handover_code,
+    // Demo has a single seeded volunteer — good enough for this scope.
+    volunteerName: j.volunteer_id ? 'Zeeshan K.' : null,
+    tempLogC: j.temp_log_c != null ? Number(j.temp_log_c) : null,
+    rejectionReason: j.delivery_reject_reason,
+    notes: j.notes
+  };
+}
+
+function mapRecipientOrg(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    sector: r.sector,
+    address: r.address,
+    director: r.director,
+    dailyCapacity: r.daily_capacity,
+    tonightReceivedMeals: r.tonight_received_meals,
+    status: r.status,
+    cdaCert: r.cda_cert
+  };
+}
+
+function mapVolunteer(v) {
+  return {
+    id: v.id,
+    name: v.name,
+    phone: v.phone,
+    vehicle: v.vehicle,
+    level: v.level,
+    runsCompleted: v.runs_completed,
+    totalKgRescued: Number(v.total_kg_rescued),
+    mealsDelivered: v.meals_delivered,
+    hub: v.hub,
+    status: v.status
+  };
+}
+
+function mapApproval(a) {
+  return {
+    id: a.id,
+    name: a.name,
+    category: a.category,
+    sector: a.sector,
+    regNumber: a.reg_number,
+    contact: a.contact,
+    status: a.status,
+    date: new Date(a.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  };
+}
+
+function mapFoodSafetyReport(r) {
+  return {
+    id: r.id,
+    vendorName: r.vendor_name,
+    sector: r.sector,
+    reportedBy: r.reported_by,
+    issue: r.issue,
+    details: r.details,
+    status: r.status,
+    timestamp: r.created_at,
+    vendorSuspended: r.vendor_suspended
+  };
+}
+
 class StateManager {
   constructor() {
     this.listeners = [];
@@ -368,6 +541,40 @@ class StateManager {
   resetState() {
     this.state = JSON.parse(JSON.stringify(defaultState));
     this.saveState();
+  }
+
+  // Pulls live data from Postgres (via lib/api.js) and replaces the
+  // hardcoded seed arrays above. Called once at app startup; on any
+  // failure (API/DB unreachable) the app just keeps running on the
+  // local defaults, same as before this was wired up.
+  async bootstrap() {
+    try {
+      const customerId = this.state.currentUser.id;
+      const [vendors, drops, reservations, rescueJobs, recipientOrgs, volunteers, approvals, foodSafetyReports] = await Promise.all([
+        apiFetch('/vendors'),
+        apiFetch('/drops'),
+        apiFetch(`/reservations?customerId=${encodeURIComponent(customerId)}`),
+        apiFetch('/rescue-jobs'),
+        apiFetch('/recipient-orgs'),
+        apiFetch('/volunteers'),
+        apiFetch('/approvals'),
+        apiFetch('/food-safety-reports')
+      ]);
+
+      this.state.vendors = vendors.map(mapVendor);
+      this.state.drops = drops.map(mapDrop);
+      this.state.reservations = reservations.map(mapReservation);
+      this.state.rescueJobs = rescueJobs.map(mapRescueJob);
+      this.state.recipientOrgs = recipientOrgs.map(mapRecipientOrg);
+      this.state.volunteers = volunteers.map(mapVolunteer);
+      this.state.approvals = approvals.map(mapApproval);
+      this.state.foodSafetyReports = foodSafetyReports.map(mapFoodSafetyReport);
+
+      this.saveState();
+      console.info('Nemat: loaded live state from the backend.');
+    } catch (err) {
+      console.warn('Nemat: backend unavailable, staying on local demo data.', err);
+    }
   }
 
   get() {
@@ -408,29 +615,39 @@ class StateManager {
   }
 
   // Customer actions
-  reserveBag(dropId) {
+  async reserveBag(dropId) {
     const drop = this.state.drops.find(d => d.id === dropId);
     if (!drop || drop.bagsLeft <= 0) {
       return { success: false, message: 'Bag is sold out or unavailable.' };
     }
 
-    // Check FR-25: at most 2 active reservations
+    // Check FR-25: at most 2 active reservations (also enforced server-side)
     const activeRes = this.state.reservations.filter(r => r.status === 'RESERVED');
     if (activeRes.length >= 2) {
       return { success: false, message: 'Maximum 2 active reservations allowed per customer (FR-25).' };
     }
 
-    // Decrement bag count atomically
+    let code;
+    try {
+      const row = await apiFetch('/reservations', {
+        method: 'POST',
+        body: JSON.stringify({ dropId, customerId: this.state.currentUser.id })
+      });
+      code = row.code; // server is the source of truth for the pickup code
+    } catch (err) {
+      if (err.apiMessage) return { success: false, message: err.apiMessage };
+      console.warn('Nemat: reservation not persisted (backend unreachable).', err);
+      code = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
     drop.bagsLeft -= 1;
     if (drop.bagsLeft === 0) {
       drop.status = 'sold_out';
     }
 
-    // Generate 4-digit code
-    const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
     const newReservation = {
       id: 'res-' + Date.now(),
-      code: randomCode,
+      code,
       dropId: drop.id,
       vendorId: drop.vendorId,
       vendorName: drop.vendorName,
@@ -440,7 +657,7 @@ class StateManager {
       pricePkr: drop.pricePkr,
       window: drop.window,
       status: 'RESERVED',
-      qrData: `NMT-${randomCode}-SECURE`,
+      qrData: `NMT-${code}-SECURE`,
       createdAt: 'Just now',
       co2SavedKg: 1.8
     };
@@ -452,13 +669,12 @@ class StateManager {
 
     this.addNotification(
       'Reservation Confirmed!',
-      `Bag reserved at ${drop.vendorName}. Pickup code #${randomCode}.`,
+      `Bag reserved at ${drop.vendorName}. Pickup code #${code}.`,
       'customer'
     );
-
     this.addNotification(
       'New Customer Reservation',
-      `${this.state.currentUser.name} reserved a bag at ${drop.vendorName} (Code #${randomCode}).`,
+      `${this.state.currentUser.name} reserved a bag at ${drop.vendorName} (Code #${code}).`,
       'vendor'
     );
 
@@ -467,23 +683,53 @@ class StateManager {
   }
 
   // Vendor actions
-  createDrop(dropData) {
+  async createDrop(dropData) {
+    const vendorId = 'v-1';
+    const pricePkr = Number(dropData.pricePkr) || 450;
+    const retailPkr = Number(dropData.retailPkr) || 1200;
+    const bagCount = Number(dropData.bagCount) || 10;
+    const windowStart = dropData.windowStart || '20:30';
+    const windowEnd = dropData.windowEnd || '21:30';
+
+    let id = 'drop-' + Date.now();
+    try {
+      const row = await apiFetch('/drops', {
+        method: 'POST',
+        body: JSON.stringify({
+          vendorId,
+          title: dropData.title || 'Artisanal Bakery Surprise Bag',
+          category: dropData.category || 'bakery',
+          pricePkr,
+          retailPkr,
+          bagCount,
+          windowStart,
+          windowEnd,
+          tags: dropData.tags || ['Halal', 'Vegetarian'],
+          description: dropData.description || 'Fresh evening surplus assortment.',
+          imageUrl: dropData.image || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBl0QExfAQufL0cuPHPiCDwpAALo0_UtLuHIAdCr7bH-8acitcPPQ2YQUqJi2kdKL-JHOQ2IS1YXgUtzvh9FAe_JLSfD4EGq4A1_goSsQiFDRosLAZgFTES9hD67-GXx0u_CCQOhOnCNoSCodJYgpYgbIjkiJEQ9fLzPX72yZwWqY8od_YnpsrS4EAWG9KSCb9KLHUB9HjMEUl1md-fPa3si02GVYUwJ88jOEvinLah0Idgy34XPWXM'
+        })
+      });
+      id = row.id;
+    } catch (err) {
+      console.warn('Nemat: drop not persisted (backend unreachable).', err);
+    }
+
     const newDrop = {
-      id: 'drop-' + Date.now(),
-      vendorId: 'v-1',
+      id,
+      vendorId,
       vendorName: 'Loaf & Crumb',
       sector: 'F-7',
       address: 'Jinnah Super Market, Sector F-7, Islamabad',
       title: dropData.title || 'Artisanal Bakery Surprise Bag',
       category: dropData.category || 'bakery',
-      pricePkr: Number(dropData.pricePkr) || 450,
-      retailPkr: Number(dropData.retailPkr) || 1200,
-      discountPct: Math.round(((Number(dropData.retailPkr) - Number(dropData.pricePkr)) / Number(dropData.retailPkr)) * 100) || 60,
-      bagCount: Number(dropData.bagCount) || 10,
-      bagsLeft: Number(dropData.bagCount) || 10,
-      window: dropData.window || '8:30 PM – 9:30 PM',
-      windowStart: '20:30',
-      windowEnd: '21:30',
+      pricePkr,
+      retailPkr,
+      discountPct: Math.round(((retailPkr - pricePkr) / retailPkr) * 100) || 60,
+      bagCount,
+      bagsLeft: bagCount,
+      window: `${formatTime12(windowStart)} – ${formatTime12(windowEnd)}`,
+      windowStart,
+      windowEnd,
       tags: dropData.tags || ['Halal', 'Vegetarian'],
       status: 'live',
       description: dropData.description || 'Fresh evening surplus assortment.',
@@ -500,67 +746,87 @@ class StateManager {
     return newDrop;
   }
 
-  verifyPickupCode(code) {
-    const reservation = this.state.reservations.find(r => r.code === code.trim() && r.status === 'RESERVED');
-    if (!reservation) {
-      return { success: false, message: 'Invalid pickup code or reservation already collected.' };
-    }
+  async verifyPickupCode(code) {
+    try {
+      const row = await apiFetch('/reservations/verify', {
+        method: 'POST',
+        body: JSON.stringify({ code: code.trim() })
+      });
+      const reservation = this.state.reservations.find(r => r.id === row.id) ||
+        this.state.reservations.find(r => r.code === code.trim());
+      if (reservation) reservation.status = 'COLLECTED';
 
-    reservation.status = 'COLLECTED';
-    this.addNotification(
-      'Pickup Verified!',
-      `Order #${reservation.code} collected by ${reservation.customerName}.`,
-      'vendor'
-    );
-    this.addNotification(
-      'Food Collected!',
-      `You collected your bag from ${reservation.vendorName}. Enjoy!`,
-      'customer'
-    );
-    this.saveState();
-    return { success: true, reservation };
+      this.addNotification('Pickup Verified!', `Order #${row.code} collected.`, 'vendor');
+      this.addNotification('Food Collected!', `You collected your bag. Enjoy!`, 'customer');
+      this.saveState();
+      return { success: true, reservation: reservation || row };
+    } catch (err) {
+      if (err.apiMessage) return { success: false, message: err.apiMessage };
+
+      // Backend unreachable — fall back to the local-only check so the
+      // demo still works offline.
+      const reservation = this.state.reservations.find(r => r.code === code.trim() && r.status === 'RESERVED');
+      if (!reservation) {
+        return { success: false, message: 'Invalid pickup code or reservation already collected.' };
+      }
+      reservation.status = 'COLLECTED';
+      this.saveState();
+      return { success: true, reservation };
+    }
   }
 
   // Send unsold bags to Volunteer Rescue Jobs
-  closeWindowAndSendToRescue(vendorId = 'v-1') {
+  async closeWindowAndSendToRescue(vendorId = 'v-1') {
+    let serverJob = null;
+    try {
+      serverJob = await apiFetch('/rescue-jobs/close-window', {
+        method: 'POST',
+        body: JSON.stringify({ vendorId })
+      });
+    } catch (err) {
+      console.warn('Nemat: close-window not persisted (backend unreachable).', err);
+    }
+
     const vendorDrops = this.state.drops.filter(d => d.vendorId === vendorId && d.bagsLeft > 0);
     let totalUnsold = 0;
     vendorDrops.forEach(d => {
       totalUnsold += d.bagsLeft;
-      d.status = 'rescue_pending';
+      d.status = 'closed';
       d.bagsLeft = 0;
     });
-
     if (totalUnsold === 0) totalUnsold = 6;
 
-    const newJob = {
-      id: 'rj-' + Date.now(),
-      dropId: vendorDrops[0]?.id || 'drop-1',
-      vendorName: 'Loaf & Crumb',
-      vendorAddress: 'Jinnah Super Market, Sector F-7, Islamabad',
-      vendorContact: 'Tariq M. (0300-5551234)',
-      recipientId: 'rec-1',
-      recipientName: 'Al-Noor Community Kitchen',
-      recipientAddress: 'Sector I-8/4, Islamabad',
-      bagsCount: totalUnsold,
-      weightKg: +(totalUnsold * 0.55).toFixed(1),
-      vehicle: 'two_wheeler',
-      distanceKm: 4.8,
-      etaMin: 20,
-      status: 'available',
-      urgent: true,
-      closingWindow: 'Pickup window closed • Urgent rescue needed',
-      pickupCode: Math.floor(1000 + Math.random() * 9000).toString(),
-      handoverCode: Math.floor(1000 + Math.random() * 9000).toString(),
-      volunteerName: null,
-      tempLogC: null,
-      notes: 'End-of-day surplus bags from evening close. Collect within 60 mins.'
-    };
+    const vendor = this.state.vendors.find(v => v.id === vendorId);
+    const newJob = serverJob
+      ? mapRescueJob(serverJob)
+      : {
+          id: 'rj-' + Date.now(),
+          dropId: vendorDrops[0]?.id || 'drop-1',
+          vendorName: vendor?.name || 'Loaf & Crumb',
+          vendorAddress: vendor?.address || 'Jinnah Super Market, Sector F-7, Islamabad',
+          vendorContact: vendor?.contact || 'Tariq M. (0300-5551234)',
+          recipientId: 'rec-1',
+          recipientName: 'Al-Noor Community Kitchen',
+          recipientAddress: 'Sector I-8/4, Islamabad',
+          bagsCount: totalUnsold,
+          weightKg: +(totalUnsold * 0.55).toFixed(1),
+          vehicle: 'two_wheeler',
+          distanceKm: 4.8,
+          etaMin: 20,
+          status: 'available',
+          urgent: true,
+          closingWindow: 'Pickup window closed • Urgent rescue needed',
+          pickupCode: Math.floor(1000 + Math.random() * 9000).toString(),
+          handoverCode: Math.floor(1000 + Math.random() * 9000).toString(),
+          volunteerName: null,
+          tempLogC: null,
+          notes: 'End-of-day surplus bags from evening close. Collect within 60 mins.'
+        };
 
     this.state.rescueJobs.unshift(newJob);
     this.addNotification(
       'New Rescue Job Available!',
-      `Urgent run: ${newJob.bagsCount} bags from Loaf & Crumb to Al-Noor Kitchen.`,
+      `Urgent run: ${newJob.bagsCount} bags from ${newJob.vendorName} to Al-Noor Kitchen.`,
       'volunteer'
     );
     this.saveState();
@@ -568,27 +834,38 @@ class StateManager {
   }
 
   // Volunteer actions
-  claimRescueJob(jobId, volunteerName = 'Zeeshan K.') {
+  async claimRescueJob(jobId, volunteerName = 'Zeeshan K.') {
     const job = this.state.rescueJobs.find(j => j.id === jobId);
     if (!job || job.status !== 'available') {
       return { success: false, message: 'Job is no longer available or already claimed.' };
     }
 
+    try {
+      await apiFetch(`/rescue-jobs/${encodeURIComponent(jobId)}/claim`, {
+        method: 'POST',
+        body: JSON.stringify({ volunteerId: 'vol-1' }) // single seeded demo volunteer
+      });
+    } catch (err) {
+      if (err.apiMessage) return { success: false, message: err.apiMessage };
+      console.warn('Nemat: claim not persisted (backend unreachable).', err);
+    }
+
     job.status = 'claimed';
     job.volunteerName = volunteerName;
 
-    this.addNotification(
-      'Rescue Run Claimed!',
-      `You claimed run #${job.id}. Head to ${job.vendorName}.`,
-      'volunteer'
-    );
+    this.addNotification('Rescue Run Claimed!', `You claimed run #${job.id}. Head to ${job.vendorName}.`, 'volunteer');
     this.saveState();
     return { success: true, job };
   }
 
-  progressRescueStep(jobId, step, data = {}) {
+  async progressRescueStep(jobId, step, data = {}) {
     const job = this.state.rescueJobs.find(j => j.id === jobId);
     if (!job) return { success: false, message: 'Job not found' };
+
+    apiFetch(`/rescue-jobs/${encodeURIComponent(jobId)}/progress`, {
+      method: 'PATCH',
+      body: JSON.stringify({ step, tempLogC: data.temp, weightKg: data.weight })
+    }).catch(err => console.warn('Nemat: progress step not persisted (backend unreachable).', err));
 
     if (step === 'pickup_verified') {
       job.tempLogC = data.temp || 4.2;
@@ -612,9 +889,14 @@ class StateManager {
   }
 
   // Recipient triage intake
-  confirmDeliveryTriage(jobId, accepted, reason = '') {
+  async confirmDeliveryTriage(jobId, accepted, reason = '') {
     const job = this.state.rescueJobs.find(j => j.id === jobId);
     if (!job) return { success: false, message: 'Job not found' };
+
+    apiFetch(`/deliveries/${encodeURIComponent(jobId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ accepted, reason })
+    }).catch(err => console.warn('Nemat: delivery triage not persisted (backend unreachable).', err));
 
     if (accepted) {
       job.status = 'delivered';
@@ -648,9 +930,14 @@ class StateManager {
   }
 
   // Admin actions
-  reviewApproval(appId, approved) {
+  async reviewApproval(appId, approved) {
     const app = this.state.approvals.find(a => a.id === appId);
     if (!app) return { success: false };
+
+    apiFetch(`/approvals/${encodeURIComponent(appId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ approved })
+    }).catch(err => console.warn('Nemat: approval decision not persisted (backend unreachable).', err));
 
     app.status = approved ? 'approved' : 'rejected';
     this.addNotification(
@@ -662,8 +949,21 @@ class StateManager {
     return { success: true, app };
   }
 
-  flagFoodSafety(vendorName, issue, details) {
+  async flagFoodSafety(vendorName, issue, details) {
     const vendor = this.state.vendors.find(v => v.name.toLowerCase().includes(vendorName.toLowerCase()));
+
+    apiFetch('/food-safety-reports', {
+      method: 'POST',
+      body: JSON.stringify({
+        vendorId: vendor?.id,
+        vendorName,
+        sector: vendor?.sector,
+        reportedBy: this.state.currentUser.name,
+        issue,
+        details
+      })
+    }).catch(err => console.warn('Nemat: food safety report not persisted (backend unreachable).', err));
+
     if (vendor) {
       vendor.flagsCount += 1;
       // FR-61: 2 confirmed flags in 30 days auto-suspends vendor

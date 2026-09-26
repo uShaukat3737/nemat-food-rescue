@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { isApiRequest, handleApiRequest } = require('./lib/api');
 
 const PORT = process.env.PORT || 3000;
 const BASE_DIR = __dirname;
@@ -25,6 +26,11 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let pathname = decodeURIComponent(parsedUrl.pathname);
+
+  if (isApiRequest(pathname)) {
+    handleApiRequest(req, res, new URL(req.url, `http://${req.headers.host}`));
+    return;
+  }
 
   // Default to index.html for root
   if (pathname === '/') {
