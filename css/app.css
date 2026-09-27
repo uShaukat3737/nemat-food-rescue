@@ -953,3 +953,6 @@
 /* Explore filters (js/explore-controls.js) */
 [data-filtered-out] { display: none !important; }
 .explore-filter-panel[hidden] { display: none !important; }
+
+/* Hide icon ligature names ("arrow_forward") until the icon font loads (js/app.js revealIconsWhenLoaded) */
+html:not(.icons-ready) .material-symbols-outlined { visibility: hidden; max-width: 1em; overflow: hidden; }

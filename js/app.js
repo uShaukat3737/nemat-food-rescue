@@ -71,6 +71,7 @@ class NematApp {
   }
 
   async init() {
+    this.revealIconsWhenLoaded();
     this.setupToastContainer();
     this.setupRouter();
 
@@ -87,6 +88,19 @@ class NematApp {
     this.handleHashChange();
     await window.NematState.bootstrap();
     this.handleHashChange();
+  }
+
+  // Icons are font ligatures: before the font arrives they render as their
+  // names ("arrow_forward") over the labels. css/app.css hides them until
+  // this adds .icons-ready. If the font never loads they stay hidden.
+  async revealIconsWhenLoaded() {
+    const iconFont = '24px "Material Symbols Outlined"';
+    try {
+      await document.fonts.load(iconFont);
+    } catch (err) {
+      console.warn('Nemat: icon font failed to load.', err);
+    }
+    if (document.fonts.check(iconFont)) document.documentElement.classList.add('icons-ready');
   }
 
   setupToastContainer() {
