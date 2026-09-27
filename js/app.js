@@ -342,9 +342,9 @@ class NematApp {
         quickHub.style.display = 'none';
       }
 
-      // Apply current language
-      const lang = window.NematState.get().language || 'en';
-      window.NematI18n.applyLanguage(lang);
+      // The language toggle was removed, so always render English (a saved
+      // 'ur' preference from before would otherwise strand users in Urdu).
+      window.NematI18n.applyLanguage('en');
 
     } catch (err) {
       console.error('Error loading screen:', err);
@@ -353,19 +353,9 @@ class NematApp {
   }
 
   hydrateCurrentScreen(routeKey, container) {
-    // 1. Language Toggle Listeners (EN / اردو)
+    // 1. Remove the Stitch mockups' EN / اردو toggle (English only for now).
     container.querySelectorAll('header button, aside button, nav button').forEach(btn => {
-      if (btn.hasAttribute('data-language-choice')) return;
-      const text = btn.textContent.trim();
-      if (text === 'EN' || text === 'اردو' || text === 'English') {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const newLang = (text === 'اردو') ? 'ur' : 'en';
-          window.NematState.setLanguage(newLang);
-          window.NematI18n.applyLanguage(newLang);
-          this.showToast(newLang === 'ur' ? 'اردو زبان فعال' : 'English Mode Activated', 'Language toggled.', 'translate');
-        });
-      }
+      if (btn.textContent.trim() === 'اردو') btn.parentElement?.remove();
     });
 
     // 2. Apply the shared customer shell treatment to vendor workspaces as well.
@@ -384,11 +374,8 @@ class NematApp {
       const logo = document.createElement('a');
       logo.className = 'retro-brand'; logo.href = '#/welcome'; logo.dataset.path = 'how-it-works';
       logo.innerHTML = '<img class="retro-brand-mark" src="/images/nemat-logo.svg" alt="Nemat">Nemat<span>.</span>';
-      const language = document.createElement('div'); language.className = 'customer-language';
-      language.innerHTML = '<button type="button" data-language-choice="en">English</button><button type="button" data-language-choice="ur">\u0627\u0631\u062f\u0648</button>';
-      language.querySelectorAll('[data-language-choice]').forEach(button => button.addEventListener('click', () => { const lang=button.dataset.languageChoice; window.NematState.setLanguage(lang); window.NematI18n.applyLanguage(lang); language.querySelectorAll('button').forEach(item=>item.classList.toggle('is-selected',item===button)); }));
       const topbar = document.createElement('header'); topbar.className = 'customer-topbar';
-      topbar.append(logo, nav, language);
+      topbar.append(logo, nav);
       if (oldHeader) oldHeader.remove();
       if (oldAside) oldAside.remove();
       const oldShell = container.querySelector(':scope > div.pl-72');
@@ -661,9 +648,7 @@ class NematApp {
     [['dashboard','grid_view','Dashboard','vendor/dashboard'],['new-drop','add_circle','New Drop','vendor/new-drop'],['settings','settings','Settings','vendor/dashboard']].forEach(([key,icon,label,path])=>{
       const link=document.createElement('a');link.href=`#/${path}`;link.dataset.path=key;link.classList.toggle('active',key===(routeKey==='vendor/new-drop'?'new-drop':'dashboard'));link.innerHTML=`<span class="material-symbols-outlined">${icon}</span>${label}`;nav.appendChild(link);
     });
-    const language=document.createElement('div');language.className='customer-language';language.innerHTML='<button type="button" data-language-choice="en">English</button><button type="button" data-language-choice="ur">اردو</button>';
-    language.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>{const lang=button.dataset.languageChoice;window.NematState.setLanguage(lang);window.NematI18n.applyLanguage(lang);language.querySelectorAll('button').forEach(item=>item.classList.toggle('is-selected',item===button))}));
-    const topbar=document.createElement('header');topbar.className='customer-topbar vendor-topbar';topbar.append(logo,nav,language);
+    const topbar=document.createElement('header');topbar.className='customer-topbar vendor-topbar';topbar.append(logo,nav);
     oldHeader?.remove();oldAside?.remove();shell?.classList.remove('pl-72');container.classList.add('customer-page','vendor-page');
     const updatedShell=container.querySelector(':scope > div.pl-72');
     if(updatedShell){updatedShell.classList.remove('pl-72');updatedShell.classList.add('customer-workspace-inner');updatedShell.prepend(topbar)}else container.prepend(topbar);
@@ -679,8 +664,7 @@ class NematApp {
     const logo=document.createElement('a');logo.className='retro-brand';logo.href='#/welcome';logo.dataset.path='how-it-works';logo.innerHTML='<img class="retro-brand-mark" src="/images/nemat-logo.svg" alt="Nemat">Nemat<span>.</span>';
     const nav=document.createElement('nav');nav.className='customer-topnav volunteer-topnav';nav.setAttribute('aria-label','Volunteer navigation');
     [['jobs','pin_drop','Jobs','volunteer/jobs'],['my-runs','two_wheeler','My Runs','volunteer/my-runs'],['volunteer-profile','person','Profile','volunteer/my-runs']].forEach(([key,icon,label,path])=>{const link=document.createElement('a');link.href=`#/${path}`;link.dataset.path=key;link.classList.toggle('active',routeKey==='volunteer/jobs'?key==='jobs':key==='my-runs'||key==='volunteer-profile');link.innerHTML=`<span class="material-symbols-outlined">${icon}</span>${label}`;nav.appendChild(link)});
-    const language=document.createElement('div');language.className='customer-language';language.innerHTML='<button type="button" data-language-choice="en">English</button><button type="button" data-language-choice="ur">اردو</button>';language.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>{const lang=button.dataset.languageChoice;window.NematState.setLanguage(lang);window.NematI18n.applyLanguage(lang);language.querySelectorAll('button').forEach(item=>item.classList.toggle('is-selected',item===button))}));
-    const topbar=document.createElement('header');topbar.className='customer-topbar volunteer-topbar';topbar.append(logo,nav,language);
+    const topbar=document.createElement('header');topbar.className='customer-topbar volunteer-topbar';topbar.append(logo,nav);
     oldHeader?.remove();oldAside?.remove();shell?.classList.remove('pl-72');container.classList.add('customer-page','volunteer-page');
     const updatedShell=container.querySelector(':scope > div.pl-72');if(updatedShell){updatedShell.classList.remove('pl-72');updatedShell.classList.add('customer-workspace-inner');updatedShell.prepend(topbar)}else container.prepend(topbar);
     main?.classList.add('customer-content');main?.classList.remove('pt-18','pt-20');
@@ -692,8 +676,7 @@ class NematApp {
     const logo=document.createElement('a');logo.className='retro-brand';logo.href='#/welcome';logo.dataset.path='how-it-works';logo.innerHTML='<img class="retro-brand-mark" src="/images/nemat-logo.svg" alt="Nemat">Nemat<span>.</span>';
     const nav=document.createElement('nav');nav.className='customer-topnav admin-topnav';nav.setAttribute('aria-label','Administration navigation');
     [['platform-overview','dashboard','Overview','admin/dashboard'],['approvals-and-verification','verified','Approvals','admin/approvals'],['users','group','Users','admin/dashboard'],['food-safety','health_and_safety','Food Safety','admin/safety'],['analytics','monitoring','Analytics','admin/analytics'],['audit-log','history_edu','Audit Log','admin/safety']].forEach(([key,icon,label,path])=>{const link=document.createElement('a');link.href=`#/${path}`;link.dataset.path=key;link.classList.toggle('active',routeKey==='admin/dashboard'?key==='platform-overview':routeKey==='admin/approvals'?key==='approvals-and-verification':routeKey==='admin/safety'?['food-safety','audit-log'].includes(key):routeKey==='admin/analytics'?key==='analytics':false);link.innerHTML=`<span class="material-symbols-outlined">${icon}</span>${label}`;nav.appendChild(link)});
-    const language=document.createElement('div');language.className='customer-language';language.innerHTML='<button type="button" data-language-choice="en">English</button><button type="button" data-language-choice="ur">اردو</button>';language.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>{const lang=button.dataset.languageChoice;window.NematState.setLanguage(lang);window.NematI18n.applyLanguage(lang);language.querySelectorAll('button').forEach(item=>item.classList.toggle('is-selected',item===button))}));
-    const topbar=document.createElement('header');topbar.className='customer-topbar admin-topbar';topbar.append(logo,nav,language);
+    const topbar=document.createElement('header');topbar.className='customer-topbar admin-topbar';topbar.append(logo,nav);
     oldHeader?.remove();oldAside?.remove();shell?.classList.remove('pl-72');container.classList.add('customer-page','admin-page');const updatedShell=container.querySelector(':scope > div.pl-72');if(updatedShell){updatedShell.classList.remove('pl-72');updatedShell.classList.add('customer-workspace-inner');updatedShell.prepend(topbar)}else container.prepend(topbar);
     main?.classList.add('customer-content');main?.classList.remove('pt-16','pt-18','pt-20');container.querySelectorAll('#nemat-quick-hub,[data-path="role-switcher"]').forEach(el=>el.remove());
   }
@@ -704,8 +687,7 @@ class NematApp {
     const nav=document.createElement('nav');nav.className='customer-topnav recipient-topnav';nav.setAttribute('aria-label','Recipient navigation');
     const active=routeKey==='recipient/dashboard'?'recipient-dashboard':routeKey==='recipient/delivery'?'recipient-deliveries':'recipient-dashboard';
     [['recipient-dashboard','dashboard','Overview'],['recipient-deliveries','local_shipping','Deliveries'],['recipient-history','receipt_long','History'],['recipient-profile','corporate_fare','Kitchen profile']].forEach(([key,icon,label])=>{const link=document.createElement('a');link.href='#';link.dataset.path=key;link.classList.toggle('active',key===active);link.innerHTML=`<span class="material-symbols-outlined">${icon}</span>${label}`;nav.appendChild(link)});
-    const language=document.createElement('div');language.className='customer-language';language.innerHTML='<button type="button" data-language-choice="en">English</button><button type="button" data-language-choice="ur">اردو</button>';language.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>{const lang=button.dataset.languageChoice;window.NematState.setLanguage(lang);window.NematI18n.applyLanguage(lang);language.querySelectorAll('button').forEach(item=>item.classList.toggle('is-selected',item===button))}));
-    const topbar=document.createElement('header');topbar.className='customer-topbar recipient-topbar';topbar.append(logo,nav,language);
+    const topbar=document.createElement('header');topbar.className='customer-topbar recipient-topbar';topbar.append(logo,nav);
     oldHeader?.remove();oldAside?.remove();container.classList.add('customer-page','recipient-page');
     if(shell){shell.classList.remove('pl-72');shell.classList.add('customer-workspace-inner');shell.prepend(topbar)}else container.prepend(topbar);
     main?.classList.add('customer-content');main?.classList.remove('pt-16','pt-18','pt-20');
