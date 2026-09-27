@@ -563,6 +563,22 @@ class NematApp {
     if (availability) availability.textContent = drop.bagsLeft === 1 ? 'Only 1 bag left!' : `${drop.bagsLeft} bags left`;
     const image = card.querySelector('img');
     if (image && drop.image) image.src = drop.image;
+    this.hydrateOfferBadges(card, drop);
+  }
+
+  hydrateOfferBadges(card, drop) {
+    const vendor = window.NematState.get().vendors.find(v => v.id === drop.vendorId);
+    const badges = window.NematExploreFilters.cardBadges(drop, vendor);
+    const categoryPill = [...card.querySelectorAll('span')].find(el => el.firstElementChild?.textContent.trim() === 'storefront');
+    if (categoryPill) categoryPill.lastChild.textContent = ` ${badges.categoryLabel}`;
+    const star = [...card.querySelectorAll('.material-symbols-outlined')].find(el => el.textContent.trim() === 'star');
+    const ratingPill = star?.parentElement;
+    if (ratingPill) {
+      ratingPill.hidden = !badges.rating;
+      ratingPill.replaceChildren(star, Object.assign(document.createElement('span'), { className: 'font-bold text-on-surface', textContent: badges.rating || '' }));
+    }
+    const verified = [...card.querySelectorAll('.material-symbols-outlined')].find(el => el.textContent.trim() === 'verified');
+    if (verified) verified.hidden = !badges.verified;
   }
 
   bindFavoriteButton(button, dropId) {
@@ -701,12 +717,13 @@ class NematApp {
     if(this.cafeImageRequests.has(key))return this.cafeImageRequests.get(key);
     const request=(async()=>{
       try{
-        const cached=JSON.parse(localStorage.getItem('nemat_cafe_images')||'{}');
+        // v2: v1 cached blurry ~200px thumbnails for 7 days.
+        const cached=JSON.parse(localStorage.getItem('nemat_cafe_images_v2')||'{}');
         if(cached[key]?.url&&cached[key].expires>Date.now())return cached[key];
         const response=await fetch(`/api/serply/images?name=${encodeURIComponent(key)}`);
         if(!response.ok)throw new Error(`image search ${response.status}`);
         const data=await response.json();const image=data.images?.[0];
-        if(image?.thumbnail){const result={url:image.thumbnail,source:image.source||'',domain:image.domain||'',title:image.title||key,expires:Date.now()+7*24*60*60*1000};cached[key]=result;try{localStorage.setItem('nemat_cafe_images',JSON.stringify(cached))}catch{}return result;}
+        if(image?.original||image?.thumbnail){const result={url:image.original||image.thumbnail,fallbackUrl:image.thumbnail||'',source:image.source||'',domain:image.domain||'',title:image.title||key,expires:Date.now()+7*24*60*60*1000};cached[key]=result;try{localStorage.setItem('nemat_cafe_images_v2',JSON.stringify(cached))}catch{}return result;}
       }catch(error){console.warn(`No Serply image found for ${key}`,error.message)}
       return {url:fallbackUrl,source:'',domain:'',title:key,expires:Date.now()+60*60*1000};
     })();
@@ -763,7 +780,7 @@ class NematApp {
       detail.append(name,address,photoCredit,meta,demoNote,offerTitle,offerDescription,pickup,dietary,pricing,viewOffer,actions);card.append(photo,detail);grid.appendChild(card);
       items.push({el:card,offer:window.NematExploreFilters.offerFromCafe(cafe,offer)});
       this.bindFavoriteButton(saveButton,matchedOffer?.id || `cafe-${cafe.id || cafe.name}`);
-      const loadPhoto=async()=>{const result=await this.getCafeImage(cafe.name,cafe.thumbnail||'');if(result.url){image.src=result.url;image.hidden=false;fallback.hidden=true;if(result.source){photoCredit.href=result.source;photoCredit.textContent=result.domain?`Photo: ${result.domain}`:'Photo source';photoCredit.hidden=false}image.addEventListener('error',()=>{image.hidden=true;fallback.hidden=false},{once:true})}};
+      const loadPhoto=async()=>{const result=await this.getCafeImage(cafe.name,cafe.thumbnail||'');if(result.url){image.src=result.url;image.hidden=false;fallback.hidden=true;if(result.source){photoCredit.href=result.source;photoCredit.textContent=result.domain?`Photo: ${result.domain}`:'Photo source';photoCredit.hidden=false}image.addEventListener('error',function onError(){if(result.fallbackUrl&&image.src!==result.fallbackUrl){image.src=result.fallbackUrl;image.hidden=false;fallback.hidden=true;return}image.removeEventListener('error',onError);image.hidden=true;fallback.hidden=false})}};
       if('IntersectionObserver'in window){const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();loadPhoto()}},{rootMargin:'180px'});observer.observe(card)}else loadPhoto();
     });
     section.appendChild(grid);offersSection.before(section);

@@ -71,5 +71,20 @@
     };
   }
 
-  window.NematExploreFilters = { filterOffers, sortOffers, offerFromDrop, offerFromCafe };
+  const CATEGORY_LABELS = { bakery: 'Bakery', cafe: 'Café', meal: 'Meal' };
+
+  // Card badges from the drop + its vendor, replacing the mockup's fixed
+  // "Artisan Bakery" / "4.9 (120+)" text. No review count exists in the DB.
+  function cardBadges(drop, vendor) {
+    const category = String(drop?.category || '');
+    const titled = category.split(/[-_\s]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    const rating = Number(vendor?.rating);
+    return {
+      categoryLabel: CATEGORY_LABELS[category] || titled || 'Surplus food',
+      rating: rating > 0 ? rating.toFixed(1) : null,
+      verified: vendor?.verified === true,
+    };
+  }
+
+  window.NematExploreFilters = { filterOffers, sortOffers, offerFromDrop, offerFromCafe, cardBadges };
 })();
