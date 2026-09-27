@@ -20,3 +20,13 @@ test('filterOffers with no matches returns an empty list, not everything', () =>
 
   assert.strictEqual(result.length, 0);
 });
+
+test('filterOffers by category: bakery, cafe, meal (savory) and vegetarian (tag)', () => {
+  const names = category => filterOffers(OFFERS, { category }).map(o => o.name);
+
+  assert.deepStrictEqual(names('bakery'), ['Loaf & Crumb']);
+  assert.deepStrictEqual(names('cafe'), ['Brew District']);
+  assert.deepStrictEqual(names('meal'), ['Brew District']);
+  assert.deepStrictEqual(names('vegetarian'), ['Loaf & Crumb']);
+  assert.deepStrictEqual(names('all'), ['Loaf & Crumb', 'Brew District']);
+});
