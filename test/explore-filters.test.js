@@ -30,3 +30,9 @@ test('filterOffers by category: bakery, cafe, meal (savory) and vegetarian (tag)
   assert.deepStrictEqual(names('vegetarian'), ['Loaf & Crumb']);
   assert.deepStrictEqual(names('all'), ['Loaf & Crumb', 'Brew District']);
 });
+
+test('filterOffers hides sold-out bags and bags over the max price', () => {
+  assert.deepStrictEqual(filterOffers(OFFERS, { hideSoldOut: true }).map(o => o.name), ['Loaf & Crumb']);
+  assert.deepStrictEqual(filterOffers(OFFERS, { maxPrice: 500 }).map(o => o.name), ['Loaf & Crumb']);
+  assert.strictEqual(filterOffers(OFFERS, { hideSoldOut: false, maxPrice: null }).length, 2);
+});
