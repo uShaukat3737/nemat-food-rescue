@@ -690,7 +690,7 @@ class NematApp {
       try{
         const cached=JSON.parse(localStorage.getItem('nemat_cafe_images')||'{}');
         if(cached[key]?.url&&cached[key].expires>Date.now())return cached[key];
-        const response=await fetch(`/serply/images?name=${encodeURIComponent(key)}`);
+        const response=await fetch(`/api/serply/images?name=${encodeURIComponent(key)}`);
         if(!response.ok)throw new Error(`image search ${response.status}`);
         const data=await response.json();const image=data.images?.[0];
         if(image?.thumbnail){const result={url:image.thumbnail,source:image.source||'',domain:image.domain||'',title:image.title||key,expires:Date.now()+7*24*60*60*1000};cached[key]=result;try{localStorage.setItem('nemat_cafe_images',JSON.stringify(cached))}catch{}return result;}
@@ -780,7 +780,7 @@ class NematApp {
     main.querySelector('[data-view-list]')?.addEventListener('click',()=>this.navigate('customer/explore'));
     let position=fallback;
     const launchMap=async()=>{
-      const config=await fetch('/map-config.json').then(r=>r.json()).catch(()=>({}));
+      const config=await fetch('/api/map-config').then(r=>r.json()).catch(()=>({}));
       if(!window.maplibregl){status('Map could not load. Try View list.');return;}
       const map=new maplibregl.Map({container:'nemat-live-map',center:[position.longitude,position.latitude],zoom:14,attributionControl:false,style:config.geoapifyKey?`https://maps.geoapify.com/v1/styles/osm-bright/style.json?apiKey=${encodeURIComponent(config.geoapifyKey)}`:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'OpenStreetMap contributors'}},layers:[{id:'base',type:'raster',source:'osm'}]}});
       // Register before awaiting Places; the style can load while that request is in flight.
