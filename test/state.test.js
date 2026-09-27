@@ -34,3 +34,13 @@ test('reserveBag fails and stores nothing when the API rejects the booking', asy
   assert.match(result.message, /Maximum 2 active reservations/);
   assert.strictEqual(state.state.reservations.length, before);
 });
+
+test('verifyPickupCode fails when the API rejects a code for a saved reservation', async () => {
+  const state = loadState(apiResponse(409, { error: 'Invalid code, or bag already collected.' }));
+  state.state.reservations.unshift({ id: 'res-x', code: '4321', status: 'RESERVED', persisted: true });
+
+  const result = await state.verifyPickupCode('4321');
+
+  assert.strictEqual(result.success, false);
+  assert.strictEqual(state.state.reservations[0].status, 'RESERVED');
+});
