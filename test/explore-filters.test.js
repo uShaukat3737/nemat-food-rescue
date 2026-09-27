@@ -41,7 +41,7 @@ test('sortOffers orders by distance, discount, price or bags; unknown keys keep 
   const { sortOffers } = sandbox.window.NematExploreFilters;
   const noDistance = { name: 'Far Away', bagsLeft: 9, pricePkr: 300, discountPct: 70 };
   const list = [...OFFERS, noDistance];
-  const names = sort => sortOffers(list, sort).map(o => o.name);
+  const names = sort => Array.from(sortOffers(list, sort), o => o.name);
 
   assert.deepStrictEqual(names('distance'), ['Brew District', 'Loaf & Crumb', 'Far Away']);
   assert.deepStrictEqual(names('discount'), ['Far Away', 'Loaf & Crumb', 'Brew District']);
