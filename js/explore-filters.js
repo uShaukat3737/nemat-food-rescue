@@ -45,5 +45,31 @@
     return compare ? [...offers].sort(compare) : [...offers];
   }
 
-  window.NematExploreFilters = { filterOffers, sortOffers };
+  // Built fresh from state on every render, so newly fetched drops/cafes
+  // are filterable without any extra wiring.
+  function offerFromDrop(drop) {
+    return {
+      name: drop.vendorName || '',
+      title: drop.title || '',
+      description: drop.description || '',
+      address: drop.address || '',
+      category: drop.category || '',
+      tags: drop.tags || [],
+      bagsLeft: num(drop.bagsLeft, 0),
+      pricePkr: num(drop.pricePkr, 0),
+      discountPct: num(drop.discountPct, 0),
+      distanceMeters: null,
+    };
+  }
+
+  function offerFromCafe(cafe, drop) {
+    return {
+      ...offerFromDrop(drop || {}),
+      name: cafe.name || '',
+      address: cafe.address || '',
+      distanceMeters: num(cafe.distanceMeters, null),
+    };
+  }
+
+  window.NematExploreFilters = { filterOffers, sortOffers, offerFromDrop, offerFromCafe };
 })();
