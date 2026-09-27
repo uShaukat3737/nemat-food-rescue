@@ -50,3 +50,20 @@ test('sortOffers orders by distance, discount, price or bags; unknown keys keep 
   assert.deepStrictEqual(names('bogus'), ['Loaf & Crumb', 'Brew District', 'Far Away']);
   assert.strictEqual(list[0].name, 'Loaf & Crumb', 'must not mutate the input');
 });
+
+test('offerFromDrop / offerFromCafe map live API data into filterable offers', () => {
+  const { offerFromDrop, offerFromCafe } = sandbox.window.NematExploreFilters;
+  const drop = { id: 'drop-9', vendorName: 'New Bakery', title: 'Bread Bag', description: 'Loaves', address: 'G-9',
+    category: 'bakery', tags: ['Vegetarian'], bagsLeft: 2, pricePkr: 300, discountPct: 50 };
+
+  assert.deepStrictEqual({ ...offerFromDrop(drop) }, {
+    name: 'New Bakery', title: 'Bread Bag', description: 'Loaves', address: 'G-9',
+    category: 'bakery', tags: ['Vegetarian'], bagsLeft: 2, pricePkr: 300, discountPct: 50, distanceMeters: null,
+  });
+  const cafe = offerFromCafe({ name: 'Corner Cafe', address: 'F-6', distanceMeters: 420 }, drop);
+  assert.strictEqual(cafe.name, 'Corner Cafe');
+  assert.strictEqual(cafe.address, 'F-6');
+  assert.strictEqual(cafe.distanceMeters, 420);
+  assert.strictEqual(cafe.title, 'Bread Bag');
+  assert.strictEqual(offerFromDrop({}).bagsLeft, 0, 'missing fields must not crash or become NaN');
+});
