@@ -24,3 +24,10 @@ test('GET /api/map-config returns the Geoapify key so it works on Vercel', async
   assert.strictEqual(status, 200);
   assert.deepStrictEqual(body, { geoapifyKey: 'test-geo-key' });
 });
+
+test('GET /api/serply/images without a name is a 400', async () => {
+  const { status, body } = await call('GET', '/api/serply/images?name=%20%20');
+
+  assert.strictEqual(status, 400);
+  assert.strictEqual(body.error, 'Cafe name is required.');
+});
