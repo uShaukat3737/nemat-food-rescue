@@ -1,6 +1,6 @@
-// Single Vercel serverless function handling every /api/* request. The
-// [...path] filename is Vercel's catch-all convention — it routes all
-// /api/* paths here without needing one file per endpoint. This just
+// Single Vercel serverless function handling every /api/* request.
+// vercel.json rewrites /api/(.*) here, because Vercel's filesystem routing
+// alone only matches one path segment under api/. This just
 // delegates straight to the same router used by server.js locally, so
 // there's exactly one implementation of the API, not two.
 const { handleApiRequest } = require('../lib/api');

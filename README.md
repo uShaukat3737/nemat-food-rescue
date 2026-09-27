@@ -23,7 +23,7 @@ The UI is available in English and Urdu (`js/i18n.js`).
 - Frontend: plain HTML, CSS and JS with no build step. Screens are in `stitch_surplus_food_rescue_platform/*/code.html`, the shell is `index.html`, and app logic is in `js/`.
 - Backend: Node `http` server (`server.js`) plus a single API router (`lib/api.js`).
 - Database: Postgres through `pg` (`lib/db.js`).
-- Deployment: Vercel. `api/[...path].js` sends every `/api/*` request to the same router.
+- Deployment: Vercel. `vercel.json` rewrites every `/api/*` request to `api/index.js`, which uses the same router.
 - PWA: `manifest.json` and a service worker in `sw.js`.
 
 ## Getting started
@@ -83,7 +83,7 @@ index.html, js/, css/        app shell, state, i18n, styles
 stitch_surplus_food_rescue_platform/   one folder per screen (code.html + screen.png mockup)
 server.js                    local static + API server
 lib/api.js, lib/db.js        API router, Postgres pool
-api/[...path].js             Vercel serverless entry
+api/index.js, vercel.json    Vercel serverless entry + /api/* rewrite
 db/                          schema.sql, seed.sql, migrate.mjs
 ```
 
