@@ -36,3 +36,17 @@ test('filterOffers hides sold-out bags and bags over the max price', () => {
   assert.deepStrictEqual(filterOffers(OFFERS, { maxPrice: 500 }).map(o => o.name), ['Loaf & Crumb']);
   assert.strictEqual(filterOffers(OFFERS, { hideSoldOut: false, maxPrice: null }).length, 2);
 });
+
+test('sortOffers orders by distance, discount, price or bags; unknown keys keep order', () => {
+  const { sortOffers } = sandbox.window.NematExploreFilters;
+  const noDistance = { name: 'Far Away', bagsLeft: 9, pricePkr: 300, discountPct: 70 };
+  const list = [...OFFERS, noDistance];
+  const names = sort => sortOffers(list, sort).map(o => o.name);
+
+  assert.deepStrictEqual(names('distance'), ['Brew District', 'Loaf & Crumb', 'Far Away']);
+  assert.deepStrictEqual(names('discount'), ['Far Away', 'Loaf & Crumb', 'Brew District']);
+  assert.deepStrictEqual(names('price'), ['Far Away', 'Loaf & Crumb', 'Brew District']);
+  assert.deepStrictEqual(names('bags'), ['Far Away', 'Loaf & Crumb', 'Brew District']);
+  assert.deepStrictEqual(names('bogus'), ['Loaf & Crumb', 'Brew District', 'Far Away']);
+  assert.strictEqual(list[0].name, 'Loaf & Crumb', 'must not mutate the input');
+});
