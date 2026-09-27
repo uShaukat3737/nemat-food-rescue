@@ -617,22 +617,10 @@ class StateManager {
 
   // Customer actions
   async reserveBag(dropId) {
-    // Keep the visible bag and the submitted ID aligned even after switching
-    // between seeded local data and database-backed IDs. For the presentation
-    // demo, recover an empty/stale local inventory from the seeded offers.
-    if (!Array.isArray(this.state.drops)) this.state.drops = [];
-    let drop = this.state.drops.find(d => String(d.id) === String(dropId));
-    if (!drop) drop = this.state.drops.find(d => Number(d.bagsLeft) > 0) || this.state.drops[0];
-    if (!drop) {
-      drop = JSON.parse(JSON.stringify(defaultState.drops[0]));
-      this.state.drops.push(drop);
+    const drop = this.state.drops.find(d => String(d.id) === String(dropId));
+    if (!drop || drop.bagsLeft <= 0) {
+      return { success: false, message: 'Bag is sold out or unavailable.' };
     }
-    if (!Number.isFinite(Number(drop.bagsLeft)) || Number(drop.bagsLeft) <= 0) {
-      drop.bagsLeft = Math.max(1, Number(drop.bagCount) || 8);
-      drop.status = 'live';
-    }
-    dropId = drop.id;
-    if (!Array.isArray(this.state.reservations)) this.state.reservations = [];
 
     let code;
     let persisted = true;
@@ -641,9 +629,12 @@ class StateManager {
         method: 'POST',
         body: JSON.stringify({ dropId, customerId: this.state.currentUser.id })
       });
-      code = row.code; // use the server code when a live reservation succeeds
+      code = row.code; // server is the source of truth for the pickup code
     } catch (err) {
-      console.warn('Nemat: using a local demo reservation because the API did not accept this booking.', err);
+      // The server answered and said no (sold out, FR-25 limit, bad drop):
+      // surface it. Only fall back to a local reservation when unreachable.
+      if (err.status) return { success: false, message: err.apiMessage || err.message };
+      console.warn('Nemat: reservation not persisted (backend unreachable).', err);
       persisted = false;
       do { code = Math.floor(1000 + Math.random() * 9000).toString(); }
       while (this.state.reservations.some(reservation => reservation.code === code));
@@ -779,8 +770,8 @@ class StateManager {
       this.saveState();
       return { success: true, reservation: reservation || row, persisted: true };
     } catch (err) {
-      // Backend unavailable or missing a demo-only reservation: fall back to
-      // the local reservation list.
+      if (err.status) return { success: false, message: err.apiMessage || err.message };
+      // Backend unreachable: fall back to the local reservation list.
       const reservation = this.state.reservations.find(r => String(r.code) === String(code).trim() && r.status === 'RESERVED');
       if (!reservation) {
         return { success: false, message: 'Invalid pickup code or reservation already collected.' };
