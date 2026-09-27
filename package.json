@@ -7,7 +7,8 @@
     "dev": "node --env-file=.env server.js",
     "start": "node --env-file=.env server.js",
     "db:migrate": "node --env-file=.env db/migrate.mjs",
-    "db:migrate:schema-only": "node --env-file=.env db/migrate.mjs --seed=false"
+    "db:migrate:schema-only": "node --env-file=.env db/migrate.mjs --seed=false",
+    "test": "node --test"
   },
   "keywords": [
     "food-rescue",
