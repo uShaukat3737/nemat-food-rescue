@@ -465,11 +465,13 @@ class NematApp {
     // Falls back to position only if no vendor name match is found.
     const state = window.NematState.get();
     const drops = state.drops;
-    this.renderMapCafeList(container);
+    const cafeGroup = this.renderMapCafeList(container);
+    const offerGrid = this.renderOfferCards(container, drops);
 
     container.querySelectorAll('article, .surplus-card').forEach((card, idx) => {
       const cardText = card.textContent;
-      const matchedDrop = drops.find(d => d.vendorName && cardText.includes(d.vendorName));
+      const matchedDrop = drops.find(d => d.id === card.dataset.dropId) ||
+        drops.find(d => d.vendorName && cardText.includes(d.vendorName));
       const dropId = matchedDrop?.id ?? drops[idx]?.id ?? 'drop-1';
       const drop = matchedDrop || drops[idx];
       if (drop) this.hydrateOfferCard(card, drop);
@@ -496,6 +498,7 @@ class NematApp {
         }
       });
     });
+    this.bindExploreControls(container, cafeGroup, offerGrid, drops);
 
     // Wire Sector Change link
     container.querySelectorAll('a').forEach(a => {
@@ -515,6 +518,34 @@ class NematApp {
       return `${hours % 12 || 12}:${String(minutes || 0).padStart(2, '0')} ${hours >= 12 ? 'PM' : 'AM'}`;
     };
     return `${toClock(drop.windowStart)} – ${toClock(drop.windowEnd)}`;
+  }
+
+  // The Stitch mockup ships a fixed 3 cards; clone the first one per drop so
+  // every drop from the API gets a card, however many there are.
+  renderOfferCards(container, drops) {
+    const template = container.querySelector('main article');
+    const grid = template?.parentElement;
+    if (!grid) return null;
+    grid.querySelectorAll(':scope > article').forEach(card => card.remove());
+    drops.forEach(drop => {
+      const card = template.cloneNode(true);
+      card.dataset.dropId = drop.id;
+      grid.appendChild(card);
+    });
+    const total = [...container.querySelectorAll('main h2')].find(h => h.textContent.trim() === 'Available near you')?.nextElementSibling;
+    if (total) total.textContent = `${drops.reduce((sum, drop) => sum + (Number(drop.bagsLeft) || 0), 0)} bags left`;
+    return grid;
+  }
+
+  bindExploreControls(container, cafeGroup, offerGrid, drops) {
+    const { offerFromDrop } = window.NematExploreFilters;
+    const groups = cafeGroup ? [cafeGroup] : [];
+    if (offerGrid) {
+      const items = [...offerGrid.querySelectorAll(':scope > article')]
+        .map(el => ({ el, offer: offerFromDrop(drops.find(drop => drop.id === el.dataset.dropId) || {}) }));
+      groups.push({ grid: offerGrid, items });
+    }
+    this.exploreFilters = window.NematExploreControls.bind(container.querySelector('main'), groups, this.exploreFilters);
   }
 
   hydrateOfferCard(card, drop) {
@@ -704,11 +735,11 @@ class NematApp {
     let cafes=[];
     try{cafes=JSON.parse(localStorage.getItem('nemat_map_cafes')||'[]')}catch{}
     let source='';try{source=localStorage.getItem('nemat_map_cafe_source')||''}catch{}
-    if(!cafes.length||!['geoapify','local-demo'].includes(source))return;
+    if(!cafes.length||!['geoapify','local-demo'].includes(source))return null;
     const main=container.querySelector('main');
     const offersHeading=[...container.querySelectorAll('h2')].find(node=>node.textContent.trim()==='Available near you');
     const offersSection=offersHeading?.closest('section');
-    if(!main||!offersSection||main.querySelector('.map-cafe-directory'))return;
+    if(!main||!offersSection||main.querySelector('.map-cafe-directory'))return null;
     const section=document.createElement('section');section.className='map-cafe-directory';
     const heading=document.createElement('div');heading.className='map-cafe-directory-heading';
     const titles=document.createElement('div');const eyebrow=document.createElement('span');eyebrow.textContent=source==='geoapify'?'FROM YOUR MAP':'DEMO PREVIEW · LIVE PLACES UNAVAILABLE';eyebrow.className='map-cafe-eyebrow';
@@ -716,6 +747,7 @@ class NematApp {
     const total=document.createElement('span');total.className='map-cafe-total';total.textContent=source==='geoapify'?`${cafes.length} places`:`${cafes.length} demo places`;heading.append(titles,total);section.appendChild(heading);
     const grid=document.createElement('div');grid.className='map-cafe-directory-grid map-cafe-offer-grid';
     const demoDrops = window.NematState.get().drops;
+    const items=[];
     cafes.forEach((cafe,cafeIndex)=>{
       const card=document.createElement('div');card.className='map-cafe-directory-card';
       const photo=document.createElement('div');photo.className='map-cafe-photo';
@@ -738,20 +770,22 @@ class NematApp {
       const dietary=document.createElement('div');dietary.className='map-cafe-dietary';(offer.tags||[]).filter(tag=>!tag.toLowerCase().startsWith('contains')).slice(0,2).forEach(tag=>{const chip=document.createElement('span');chip.textContent=tag;dietary.appendChild(chip)});
       const photoCredit=document.createElement('a');photoCredit.className='map-cafe-photo-credit';photoCredit.hidden=true;photoCredit.target='_blank';photoCredit.rel='noopener noreferrer';photoCredit.textContent='Photo source';
       const meta=document.createElement('div');meta.className='map-cafe-directory-meta';
-      if(Number.isFinite(Number(cafe.rating))){const rating=document.createElement('span');rating.className='map-cafe-rating';rating.textContent=`? ${Number(cafe.rating).toFixed(1)}`;meta.appendChild(rating)}
+      if(Number(cafe.rating)>0){const rating=document.createElement('span');rating.className='map-cafe-rating';rating.textContent=`★ ${Number(cafe.rating).toFixed(1)}`;meta.appendChild(rating)}
       const distance=document.createElement('span');distance.textContent=cafe.distanceMeters?`${(cafe.distanceMeters/1000).toFixed(1)} km away`:'Nearby';meta.appendChild(distance);
       const actions=document.createElement('div');actions.className='map-cafe-directory-actions';
-      if(cafe.drop){const bags=document.createElement('button');bags.type='button';bags.className='map-cafe-bags-button';bags.textContent=`${cafe.drop.bagsLeft} bags ? View`;bags.addEventListener('click',()=>{this.selectedBagId=cafe.drop.id;this.navigate('customer/bag')});actions.appendChild(bags)}
+      if(cafe.drop){const bags=document.createElement('button');bags.type='button';bags.className='map-cafe-bags-button';bags.textContent=`${cafe.drop.bagsLeft} bags → View`;bags.addEventListener('click',()=>{this.selectedBagId=cafe.drop.id;this.navigate('customer/bag')});actions.appendChild(bags)}
       const mapButton=document.createElement('button');mapButton.type='button';mapButton.className='map-cafe-map-button';mapButton.textContent='Show on map';mapButton.addEventListener('click',()=>{try{localStorage.setItem('nemat_selected_map_cafe',String(cafe.id||cafe.name))}catch{}this.navigate('customer/map')});actions.appendChild(mapButton);
       const pricing=document.createElement('div');pricing.className='map-cafe-pricing';pricing.innerHTML=`<strong>PKR ${offer.pricePkr}</strong><del>PKR ${offer.retailPkr}</del><b>Save PKR ${offer.retailPkr-offer.pricePkr}</b>`;
       const viewOffer=document.createElement('button');viewOffer.type='button';viewOffer.className='map-cafe-view-offer';viewOffer.textContent='View bag';viewOffer.addEventListener('click',()=>{this.selectedBagId=offer.id;this.navigate('customer/bag')});
       if (!matchedOffer) viewOffer.textContent='View sample bag';
       detail.append(name,address,photoCredit,meta,demoNote,offerTitle,offerDescription,pickup,dietary,pricing,viewOffer,actions);card.append(photo,detail);grid.appendChild(card);
+      items.push({el:card,offer:window.NematExploreFilters.offerFromCafe(cafe,offer)});
       this.bindFavoriteButton(saveButton,matchedOffer?.id || `cafe-${cafe.id || cafe.name}`);
       const loadPhoto=async()=>{const result=await this.getCafeImage(cafe.name,cafe.thumbnail||'');if(result.url){image.src=result.url;image.hidden=false;fallback.hidden=true;if(result.source){photoCredit.href=result.source;photoCredit.textContent=result.domain?`Photo: ${result.domain}`:'Photo source';photoCredit.hidden=false}image.addEventListener('error',()=>{image.hidden=true;fallback.hidden=false},{once:true})}};
       if('IntersectionObserver'in window){const observer=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){observer.disconnect();loadPhoto()}},{rootMargin:'180px'});observer.observe(card)}else loadPhoto();
     });
     section.appendChild(grid);offersSection.before(section);
+    return {grid,items};
   }
 
   async hydrateCustomerMap(container) {

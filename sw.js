@@ -1,11 +1,13 @@
 // Nemat (نعمت) - Service Worker for Offline Tolerance (NFR-6, FR-26)
-const CACHE_NAME = 'nemat-v1';
+const CACHE_NAME = 'nemat-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/css/app.css',
   '/js/state.js',
   '/js/i18n.js',
+  '/js/explore-filters.js',
+  '/js/explore-controls.js',
   '/js/app.js',
   '/manifest.json'
 ];
