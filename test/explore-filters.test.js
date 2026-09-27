@@ -67,3 +67,15 @@ test('offerFromDrop / offerFromCafe map live API data into filterable offers', (
   assert.strictEqual(cafe.title, 'Bread Bag');
   assert.strictEqual(offerFromDrop({}).bagsLeft, 0, 'missing fields must not crash or become NaN');
 });
+
+test('cardBadges derives the category label and rating from live data, never mockup text', () => {
+  const { cardBadges } = sandbox.window.NematExploreFilters;
+
+  assert.deepStrictEqual({ ...cardBadges({ category: 'cafe' }, { rating: 4.8, verified: true }) },
+    { categoryLabel: 'Café', rating: '4.8', verified: true });
+  assert.deepStrictEqual({ ...cardBadges({ category: 'bakery' }, { rating: 0, verified: false }) },
+    { categoryLabel: 'Bakery', rating: null, verified: false });
+  assert.deepStrictEqual({ ...cardBadges({ category: 'soup-kitchen' }, undefined) },
+    { categoryLabel: 'Soup Kitchen', rating: null, verified: false });
+  assert.strictEqual(cardBadges({}, null).categoryLabel, 'Surplus food');
+});
