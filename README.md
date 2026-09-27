@@ -39,12 +39,16 @@ npm run dev                 # http://localhost:3000
 
 To apply the schema without seed data, run `npm run db:migrate:schema-only`.
 
+Run the tests with `npm test`. They use Node's built-in test runner and need no database.
+
 ### Environment variables
 
 | Name | Default | Purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | `postgres://localhost:5432/nemat` | Postgres connection string |
 | `PORT` | `3000` | Local server port |
+| `GEOAPIFY_API_KEY` | none | Map tiles (served to the browser by `/api/map-config`) |
+| `SERPLY_API_KEY` | none | Café photo lookup (`/api/serply/images`); returns 503 when unset |
 
 ## API
 
@@ -69,6 +73,8 @@ All routes live in `lib/api.js`.
 | GET | `/api/recipient-orgs` |
 | GET | `/api/volunteers` |
 | GET, PATCH | `/api/users/:id` |
+| GET | `/api/map-config` |
+| GET | `/api/serply/images?name=` |
 
 ## Project layout
 
@@ -84,7 +90,7 @@ db/                          schema.sql, seed.sql, migrate.mjs
 ## Deploying to Vercel
 
 1. Import the repo into Vercel.
-2. Set `DATABASE_URL` to a hosted Postgres database, such as Neon or Supabase.
+2. Set `DATABASE_URL` to a hosted Postgres database (the team uses Supabase), plus `GEOAPIFY_API_KEY` and `SERPLY_API_KEY`.
 3. Run `npm run db:migrate` against that database once.
 
 Static files are served as they are, and `/api/*` runs as a single function.
