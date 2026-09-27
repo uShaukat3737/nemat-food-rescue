@@ -31,7 +31,7 @@
     .role-main:before,.role-main:after{position:absolute;z-index:-1;color:var(--green);font:31px Georgia,serif;pointer-events:none}
     .role-main:before{content:'✳';left:10%;top:34%}.role-main:after{content:'✳';right:11%;top:27%;font-size:25px}
     .role-leaf{position:absolute;z-index:-1;right:15%;top:17%;width:15px;height:23px;border-radius:100% 0 100% 0;background:var(--green);transform:rotate(23deg)}
-    .role-swoosh{position:absolute;z-index:-1;left:48%;top:27%;width:108px;height:12px;border-radius:50%;background:#f2bd38;transform:rotate(4deg)}
+    .role-swoosh{position:relative;z-index:0;white-space:nowrap}.role-swoosh::after{content:"";position:absolute;z-index:-1;left:-6px;right:-6px;bottom:-6px;height:9px;border-radius:50%;background:#f2bd38;transform:rotate(-2deg)}
     .role-character{position:absolute;z-index:-1;bottom:48px;height:clamp(150px,27vh,260px);object-fit:contain;object-position:center bottom;pointer-events:none}
     .role-character--onion{left:clamp(12px,3.2vw,50px);width:clamp(100px,15vw,190px)}
     .role-character--fork{right:clamp(12px,3.2vw,50px);width:clamp(112px,17vw,225px);height:clamp(140px,25vh,238px)}
@@ -80,11 +80,11 @@
       <div class="role-window-language" aria-label="Language"><button type="button" data-language-choice="en" aria-pressed="true">EN</button><button type="button" data-language-choice="ur" aria-pressed="false">اردو</button></div>
     </header>
     <section class="role-main">
-      <span class="role-leaf" aria-hidden="true"></span><span class="role-swoosh" aria-hidden="true"></span>
+      <span class="role-leaf" aria-hidden="true"></span>
       <img class="role-character role-character--onion" src="/images/onion.png" alt="">
       <img class="role-character role-character--fork" src="/images/fork.png" alt="">
       <div class="role-content">
-        <header class="role-heading"><p class="role-eyebrow">Islamabad food rescue</p><h1>How will you use the platform?</h1><p>Choose your role to get started with Nemat.</p></header>
+        <header class="role-heading"><p class="role-eyebrow">Islamabad food rescue</p><h1>How will you use the platform?</h1><p>Choose your role to <span class="role-swoosh">get started</span> with Nemat.</p></header>
         <section class="role-grid" id="role-selection-grid" aria-label="Choose a role">
           <article class="role-card" data-role="Customer" role="button" tabindex="0" aria-pressed="true"><div class="role-card-inner"><div class="role-card-title"><span class="role-icon"><span class="material-symbols-outlined">person</span></span><h2>Customer</h2><span class="urdu">صارف</span></div><span class="role-tag role-tag--warm">Save up to 70%</span><p class="role-copy">Find discounted surplus food near you.</p></div></article>
           <article class="role-card" data-role="Vendor" role="button" tabindex="0" aria-pressed="false"><div class="role-card-inner"><div class="role-card-title"><span class="role-icon"><span class="material-symbols-outlined">support_agent</span></span><h2>Vendor</h2><span class="urdu">دکاندار</span></div><span class="role-tag">Local food business</span><p class="role-copy">Share surplus and connect with local rescuers.</p></div></article>
